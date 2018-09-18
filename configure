@@ -1,0 +1,617 @@
+#!/bin/sh
+# 
+# Gmu Music Player
+#
+# Copyright (c) 2006-2015 Johannes Heimansberg (wej.k.vu)
+#
+# File: configure  Created: 130804
+#
+# Description: Minimal configure script for detecting and/or manually 
+# configuring settings required for building the project. Not based on 
+# autoconf.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2 of
+# the License. See the file COPYING in the Gmu's main directory
+# for details.
+#
+
+# Project independent stuff
+if [ "$CC" = "" ]; then
+	CC=cc
+fi
+
+TMP_CC=`which $CC`
+
+LIBRARY_PATHS=
+if [ "$TMP_CC" != "" ]; then
+	BASE_DIR="`dirname $TMP_CC`/.."
+fi
+BASE_INCLUDE_PATH="$BASE_DIR/include"
+INCLUDE_PATHS="-I$BASE_INCLUDE_PATH"
+TARGET=unknown
+EXTRA_CFLAGS=
+BUILD_CONFIG_EXTRAS=
+LFLAGS_CORE=
+LIBS_CORE=
+
+test_compiler()
+{
+	res=1
+	cat - <<_WEJTEST >/tmp/test.wej.c
+$includes_test
+int main(void)
+{
+  return 0;
+}
+_WEJTEST
+	$CC $CFLAGS $INCLUDE_PATHS -o /tmp/test.exe /tmp/test.wej.c
+
+	if [ $? = 0 ]; then
+		echo "Compiler $CC: okay";
+	else
+		echo "Compiler $CC: not working";
+		res=0
+	fi
+	rm -f /tmp/test.o /tmp/test.wej.c /tmp/test.exe
+	return $res
+}
+
+test_lib()
+{
+	cat - <<_WEJTEST >/tmp/test.wej.c
+$includes_test
+int main(void)
+{
+  $code_test
+  return 0;
+}
+_WEJTEST
+
+	echo "Checking '$1'..."
+	res=1
+	echo -n "$1 header files: "
+	$CC $CFLAGS $INCLUDE_PATHS $includes_test_flags -c -o /tmp/test.o /tmp/test.wej.c -Wall 2>/dev/null
+	if [ $? = 0 ]; then
+		echo "okay";
+	else
+		echo "failed";
+		res=0
+	fi
+
+	echo -n "$1 library: "
+	$CC $LFLAGS $LIBRARY_PATHS -o /tmp/test.exe /tmp/test.o $libs_test 2>/dev/null
+	if [ $? = 0 ]; then
+		echo "okay";
+	else
+		echo "failed";
+		res=0
+	fi
+	rm -f /tmp/test.o /tmp/test.wej.c /tmp/test.exe
+	return $res
+}
+
+test_need_libdl()
+{
+	res=0
+	cat - <<_WEJTEST >/tmp/test.wej.c
+#include <dlfcn.h>
+int main(void)
+{
+	dlerror();
+  return 0;
+}
+_WEJTEST
+	$CC $CFLAGS $INCLUDE_PATHS -o /tmp/test.exe /tmp/test.wej.c 2>/dev/null
+	if [ $? != 0 ]; then
+		res=1
+	fi
+	return $res
+}
+
+add_config()
+{
+	BUILD_CONFIG_EXTRAS="$BUILD_CONFIG_EXTRAS
+$1"
+}
+
+# Project dependent stuff
+set_feature()
+{
+	feature=$1
+	on_off=$2
+	case $feature in
+		gmu)
+			gmu_core=$on_off
+			;;
+		gmuc)
+			tool_gmuc=$on_off
+			;;
+		opus-decoder)
+			dec_opus=$on_off
+			;;
+		mpg123-decoder)
+			dec_mpg123=$on_off
+			;;
+		vorbis-decoder)
+			dec_vorbis=$on_off
+			;;
+		musepack-decoder)
+			dec_musepack=$on_off
+			;;
+		flac-decoder)
+			dec_flac=$on_off
+			;;
+		speex-decoder)
+			dec_speex=$on_off
+			;;
+		modplug-decoder)
+			dec_modplug=$on_off
+			;;
+		openmpt-decoder)
+			dec_openmpt=$on_off
+			;;
+		wavpack-decoder)
+			dec_wavpack=$on_off
+			;;
+		sdl-frontend)
+			fe_sdl=$on_off
+			;;
+		web-frontend)
+			fe_web=$on_off
+			;;
+		lirc-frontend)
+			fe_lirc=$on_off
+			;;
+		log-frontend)
+			fe_log=$on_off
+			;;
+		medialib)
+			feature_medialib=$on_off
+			;;
+		SDL_gfx)
+			feature_sdl_gfx=$on_off
+			;;
+		debug)
+			feature_debug=$on_off
+			;;
+	esac
+}
+
+sdl_cflags=
+sdl_libs=
+
+print_features_and_write_config()
+{
+	local dec=""
+	local frn=""
+
+	echo "# Generated Gmu config" >config.mk
+	echo "Enabled features:"
+	local TOOLS_TO_BUILD=
+	if [ $gmu_core != 0 ]; then
+		echo "Gmu core enabled"
+		TOOLS_TO_BUILD="$TOOLS_TO_BUILD gmu.bin"
+	fi
+	if [ $tool_gmuc != 0 ]; then
+		echo "gmuc enabled"
+		TOOLS_TO_BUILD="$TOOLS_TO_BUILD gmuc"
+		EXTRA_CFLAGS="$EXTRA_CFLAGS -I$BASE_INCLUDE_PATH/ncursesw"
+	fi
+	if [ $feature_medialib = 1 ]; then
+		echo "Media library enabled"
+		echo "GMU_MEDIALIB=1" >>config.mk
+	fi
+	if [ $feature_debug = 1 ]; then
+		echo "Debug build enabled"
+		EXTRA_CFLAGS="$EXTRA_CFLAGS -DDEBUG"
+	fi
+	echo
+	echo "Decoders:"
+	if [ $dec_opus = 1 ]; then
+		echo "Opus enabled"
+		dec="$dec decoders/opus.so"
+	fi
+	if [ $dec_mpg123 = 1 ]; then
+		echo "mpg123 enabled"
+		dec="$dec decoders/mpg123.so"
+	fi
+	if [ $dec_vorbis = 1 ]; then
+		echo "Vorbis enabled"
+		dec="$dec decoders/vorbis.so"
+	fi
+	if [ $dec_musepack = 1 ]; then
+		echo "Musepack enabled"
+		dec="$dec decoders/musepack.so"
+	fi
+	if [ $dec_flac = 1 ]; then
+		echo "FLAC enabled"
+		dec="$dec decoders/flac.so"
+	fi
+	if [ $dec_speex = 1 ]; then
+		echo "Speex enabled"
+		dec="$dec decoders/speex.so"
+	fi
+	if [ $dec_modplug = 1 ]; then
+		echo "ModPlug enabled"
+		dec="$dec decoders/modplug.so"
+	fi
+	if [ $dec_openmpt = 1 ]; then
+		echo "OpenMPT enabled"
+		dec="$dec decoders/openmpt.so"
+	fi
+	if [ $dec_wavpack = 1 ]; then
+		echo "WavPack enabled"
+		dec="$dec decoders/wavpack.so"
+	fi
+	echo
+	echo "Frontends:"
+	if [ $fe_sdl = 1 ]; then
+		echo "SDL frontend enabled"
+		frn="$frn frontends/sdl.so"
+	fi
+	if [ $feature_sdl_gfx = 0 ]; then
+		echo "SDL_gfx support disabled"
+		echo "SDLFE_WITHOUT_SDL_GFX=1" >> config.mk
+	fi
+	if [ $fe_web = 1 ]; then
+		echo "Web frontend enabled"
+		frn="$frn frontends/gmuhttp.so"
+	fi
+	if [ $fe_lirc = 1 ]; then
+		echo "LIRC frontend enabled"
+		frn="$frn frontends/lirc.so"
+	fi
+	if [ $fe_log = 1 ]; then
+		echo "Log frontend enabled"
+		frn="$frn frontends/log.so"
+	fi
+	echo "CC=$CC" >>config.mk
+	if [ $sdk_path ]; then
+		echo "SDL_CFLAGS=$(sdl-config --prefix=$sdk_path --cflags)" >>config.mk
+		echo "SDL_LIB=$(sdl-config --prefix=$sdk_path --libs)" >>config.mk
+	else
+		echo "SDL_CFLAGS=$(sdl-config --cflags)" >>config.mk
+		echo "SDL_LIB=$(sdl-config --libs)" >>config.mk
+	fi
+	echo "CFLAGS=$CFLAGS \$(SDL_CFLAGS) -fsigned-char -D_REENTRANT -DUSE_MEMORY_H $EXTRA_CFLAGS" >>config.mk
+	echo "LFLAGS=$LFLAGS -Wl,-export-dynamic" >>config.mk
+	echo "LFLAGS_CORE=$LFLAGS_CORE" >>config.mk
+	echo "LIBS_CORE=$LIBS_CORE" >>config.mk
+	echo "DECODERS_TO_BUILD=$dec" >>config.mk
+	echo "FRONTENDS_TO_BUILD=$frn" >>config.mk
+	echo "TARGET=$TARGET" >>config.mk
+	echo "TOOLS_TO_BUILD=$TOOLS_TO_BUILD" >>config.mk
+	echo "$BUILD_CONFIG_EXTRAS" >>config.mk
+}
+
+help()
+{
+	echo "Usage $0 [options]"
+	echo "Possible options:"
+	echo "  --enable <feature>"
+	echo "  --disable <feature>"
+	echo "  --target-device <device name>"
+	echo "  --sdk-path </path/to/sdk/base/dir>"
+	echo "  --help"
+	echo "  --includes </path/to/additional/include-files>"
+	echo "  --libs </path/to/additional/libs>"
+}
+
+# Flags (possible values: 0=disabled, 1=enabled, -2=autodetect)
+# Set most flags to -2 (autodetect)
+gmu_core=-2
+tool_gmuc=-2
+dec_opus=-2
+dec_mpg123=-2
+dec_vorbis=-2
+dec_musepack=-2
+dec_flac=-2
+dec_speex=-2
+dec_modplug=-2
+dec_openmpt=-2
+dec_wavpack=-2
+fe_sdl=-2
+fe_web=-2
+fe_lirc=-2
+fe_log=-2
+feature_medialib=0
+feature_sdl_gfx=-2
+feature_debug=0
+target_device="unknown"
+sdk_path=
+includes=
+libs=
+
+# Parse options
+file=""
+
+while :
+do
+	case $1 in
+		-h | --help | -\?)
+			help
+			exit 0
+			;;
+		-e | --enable | --with)
+			enable=$2
+			if [ "$enable" = "" ]; then
+				echo "Invalid use of --enable"
+				break;
+			fi
+			shift 2
+			;;
+		--enable=* | --with=*)
+			enable=${1#*=}
+			shift
+			;;
+		-d | --disable | --without)
+			disable=$2
+			if [ "$disable" = "" ]; then
+				echo "Invalid use of --disable"
+				break;
+			fi
+			shift 2
+			;;
+		--disable=* | --without=*)
+			disable=${1#*=}
+			shift
+			;;
+		--target-device | -t)
+			target_device=$2
+			shift 2
+			;;
+		--target-device=*)
+			target_device=${1#*=}
+			shift
+			;;
+		--sdk-path)
+			sdk_path=$2
+			shift 2
+			;;
+		--sdk-path=*)
+			sdk_path=${1#*=}
+			shift
+			;;
+		--includes)
+			includes="$includes -I$2"
+			shift 2
+			;;
+		--includes=*)
+			includes="$includes -I${1#*=}"
+			shift
+			;;
+		--libs)
+			libs="$libs -L$2"
+			shift 2
+			;;
+		--libs=*)
+			libs="$libs -L${1#*=}"
+			shift
+			;;
+		--) # End of all options
+			shift
+			break
+			;;
+		-*)
+			echo "WARNING: Unknown option (ignored): $1" >&2
+			shift
+			;;
+		*)  # No more options. Stop while loop
+			break
+			;;
+	esac
+	
+	set_feature $enable 1
+	enable=
+	set_feature $disable 0
+	disable=
+	TARGET=$target_device
+done
+
+INCLUDE_PATHS="$INCLUDE_PATHS $includes"
+LIBRARY_PATHS="$LIBRARY_PATHS $libs"
+CFLAGS="$CFLAGS $INCLUDE_PATHS"
+LFLAGS="$LFLAGS $LIBRARY_PATHS"
+
+test_compiler
+if [ $? = 0 ]; then
+	exit 2
+fi
+
+test_need_libdl
+if [ $? = 1 ]; then
+	echo "libdl needed."
+	LIBS_CORE="$LIBS_CORE -ldl"
+fi
+
+# Tests
+includes_test="#include <SDL/SDL.h>"
+if [ $sdk_path ]; then
+	sdl_cflags=$(sdl-config --prefix=$sdk_path --cflags)
+	sdl_libs=$(sdl-config --prefix=$sdk_path --libs)
+else
+	sdl_cflags=$(sdl-config --cflags)
+	sdl_libs=$(sdl-config --libs)
+fi
+libs_test=$sdl_libs
+includes_test_flags=$sdl_cflags
+code_test=""
+test_lib "SDL"
+if [ $? = 0 ]; then
+	echo "WARNING: Gmu depends on SDL. Cannot build the Gmu core without it."
+	gmu_core=0
+fi
+
+includes_test="#include <SDL/SDL_rotozoom.h>"
+if [ $sdk_path ]; then
+	sdl_cflags=$(sdl-config --prefix=$sdk_path --cflags)
+	sdl_libs=$(sdl-config --prefix=$sdk_path --libs)
+else
+	sdl_cflags=$(sdl-config --cflags)
+	sdl_libs=$(sdl-config --libs)
+fi
+libs_test="$sdl_libs -lSDL_gfx"
+includes_test_flags=$sdl_cflags
+code_test=""
+test_lib "SDL_gfx"
+if [ $? = 0 ]; then
+	echo "SDL_gfx support disabled."
+	feature_sdl_gfx=0
+fi
+
+
+includes_test="#ifndef _XOPEN_SOURCE_EXTENDED
+#define _XOPEN_SOURCE_EXTENDED
+#endif
+#include <curses.h>"
+includes_test_flags="-I$BASE_INCLUDE_PATH/ncursesw"
+libs_test="-lncursesw"
+code_test="int testvar = WACS_VLINE;"
+test_lib "ncursesw"
+if [ $? = 0 ]; then
+	tool_gmuc=0
+fi
+
+if [ $dec_opus != 0 ]; then
+	includes_test="#include <opus/opus.h>
+#include <opusfile.h>"
+	includes_test_flags="-I$BASE_INCLUDE_PATH/opus"
+	libs_test="-lopus -lopusfile"
+	code_test=""
+	test_lib "opus"
+	dec_opus=$?
+	[ $dec_opus = 1 ] && add_config "DEC_opus_CFLAGS=$includes_test_flags"
+fi
+
+if [ $dec_mpg123 != 0 ]; then
+	includes_test="#include <mpg123.h>"
+	libs_test="-lmpg123"
+	code_test=""
+	test_lib "libmpg123"
+	dec_mpg123=$?
+fi
+
+if [ $dec_flac != 0 ]; then
+	includes_test="#include <FLAC/stream_decoder.h>"
+	libs_test="-lFLAC"
+	code_test=""
+	test_lib "libFLAC"
+	dec_flac=$?
+fi
+
+if [ $dec_vorbis != 0 ]; then
+	includes_test="#include <tremor/ivorbiscodec.h>"
+	libs_test="-lvorbisidec"
+	code_test=""
+	test_lib "libvorbisidec"
+	dec_vorbis=$?
+fi
+
+if [ $dec_modplug != 0 ]; then
+	includes_test="#include <libmodplug/modplug.h>"
+	libs_test="-lmodplug"
+	code_test=""
+	test_lib "libmodplug"
+	dec_modplug=$?
+fi
+
+if [ $dec_openmpt != 0 ]; then
+	includes_test="#include <libopenmpt/libopenmpt.h>
+#include <libopenmpt/libopenmpt_stream_callbacks_file.h>"
+	libs_test="-lopenmpt"
+	code_test=""
+	test_lib "libopenmpt"
+	dec_openmpt=$?
+fi
+
+if [ $dec_speex != 0 ]; then
+	includes_test="#include <ogg/ogg.h>
+#include <speex/speex.h>
+#include <speex/speex_header.h>
+#include <speex/speex_stereo.h>
+#include <speex/speex_callbacks.h>"
+	includes_test_flags=""
+	libs_test="-logg -lspeex"
+	code_test=""
+	test_lib "speex"
+	dec_speex=$?
+	[ $dec_speex = 1 ] && add_config "DEC_speex_CFLAGS=$includes_test_flags"
+fi
+
+if [ $feature_medialib != 0 ]; then
+	includes_test="#include <sqlite3.h>"
+	libs_test="-lsqlite3"
+	code_test=""
+	test_lib "Media library dependency: libsqlite3"
+	if [ $? = 1 ]; then
+		feature_medialib=1
+		EXTRA_CFLAGS="$EXTRA_CFLAGS -DGMU_MEDIALIB=1"
+	else
+		feature_medialib=0
+	fi
+fi
+
+
+if [ $fe_sdl != 0 ]; then
+	if [ $sdk_path ]; then
+		sdl_cflags=$(sdl-config --prefix=$sdk_path --cflags)
+		sdl_libs=$(sdl-config --prefix=$sdk_path --libs)
+	else
+		sdl_cflags=$(sdl-config --cflags)
+		sdl_libs=$(sdl-config --libs)
+	fi
+	includes_test="#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>"
+	libs_test="$sdl_libs -lSDL_image"
+	includes_test_flags=$sdl_cflags
+	code_test=""
+	test_lib "SDL + SDL_image"
+	fe_sdl=$?
+fi
+
+if [ $fe_web != 0 ]; then
+	includes_test="#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <signal.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+"
+	libs_test="-lpthread"
+	code_test=""
+	test_lib "web frontend dependencies"
+	fe_web=$?
+fi
+
+if [ $fe_lirc != 0 ]; then
+	includes_test="#include <pthread.h>
+#include <lirc/lirc_client.h>"
+	libs_test="-llirc_client"
+	code_test=""
+	test_lib "lirc_client"
+	fe_lirc=$?
+fi
+
+if [ $fe_log != 0 ]; then
+	includes_test="#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>"
+	libs_test=""
+	code_test=""
+	test_lib "log frontend dependencies"
+	fe_log=$?
+fi
+
+echo
+echo "Configuration complete!"
+echo "Target device: $target_device"
+print_features_and_write_config
