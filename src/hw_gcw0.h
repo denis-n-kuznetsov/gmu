@@ -1,0 +1,42 @@
+/*
+ * Gmu Music Player
+ *
+ * Copyright (c) 2013-2018 Denis Kuznetsov (denis.n.kuznetsov@gmail.com)
+ *
+ * File: hw_gcw0.h  Created: 131018
+ *
+ * Description: GCW Zero specific stuff.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; version 2 of
+ * the License. See the file COPYING in the Gmu's main directory
+ * for details.
+ */
+
+#ifndef _HW_GCW0_H
+#define _HW_GCW0_H
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <linux/fb.h>
+#include <unistd.h>
+
+#define HW_COLOR_DEPTH 16
+#define HW_SCREEN_WIDTH 320
+#define HW_SCREEN_HEIGHT 240
+
+#define SAMPLE_BUFFER_SIZE 4096
+
+#define MAX_COVER_IMAGE_PIXELS 400000
+
+int         hw_open_mixer(int mixer_channel);
+void        hw_close_mixer(void);
+void        hw_set_volume(int volume);
+void        hw_display_off(void);
+void        hw_display_on(void);
+void        hw_detect_device_model(void);
+const char *hw_get_device_model_name(void);
+#endif

@@ -1,0 +1,11 @@
+[Desktop Entry]
+
+Type=Application
+Name=Gmu
+Comment=A multi-format music player
+Categories=applications;
+Icon=gmu
+Exec=gmu-gcw0.dge
+Terminal=false
+
+X-OD-Manual=README.txt

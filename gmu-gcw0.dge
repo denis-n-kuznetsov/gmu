@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#*******************************************************************#
+#       Name:           gmu-gcw0.dge                                #
+#       Author:         Denis Kuznetsov denis.n.kuznetsov@gmail.com #
+#       Description:    Launches GMU Music Player                   #
+#       Date:           2018-09-18                                  #
+#*******************************************************************#
+
+cd `dirname $0`
+
+export SDL_NOMOUSE=1
+export LD_LIBRARY_PATH=libs.gcw0/
+./gmu.bin -e -c $HOME/.config/gmu/gmu.gcw0.conf
