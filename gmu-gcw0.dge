@@ -1,14 +1,29 @@
 #!/bin/sh
 
-#*******************************************************************#
-#       Name:           gmu-gcw0.dge                                #
-#       Author:         Denis Kuznetsov denis.n.kuznetsov@gmail.com #
-#       Description:    Launches GMU Music Player                   #
-#       Date:           2018-09-18                                  #
-#*******************************************************************#
+GMU_CFG_PATH="$HOME"/.config/gmu/
+GMU_CFG="$GMU_CFG_PATH"./gmu.conf
+VERSION="$GMU_CFG_PATH"./v0.10
 
 cd `dirname $0`
 
-export SDL_NOMOUSE=1
-export LD_LIBRARY_PATH=libs.gcw0/
-./gmu.bin -e -c $HOME/.config/gmu/gmu.gcw0.conf
+[ ! -d "$HOME" ] && {
+	echo "Can not find home directory."
+	exit 1
+}
+
+mkdir -p "$GMU_CFG_PATH"
+
+[ ! -f "$GMU_CFG" ] && {
+	cp gmu.gcw0.conf "$GMU_CFG"
+	touch "$VERSION"
+}
+
+[ ! -f "$VERSION" ] && {
+	mv "$GMU_CFG" "$GMU_CFG".bak
+	cp gmu.gcw0.conf "$GMU_CFG"
+	touch "$VERSION"
+}
+
+SDL_NOMOUSE=1 LD_LIBRARY_PATH=libs.gcw0/ ./gmu.bin -c "$GMU_CFG"
+
+exit $?
