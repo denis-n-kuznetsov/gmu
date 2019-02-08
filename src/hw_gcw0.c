@@ -47,7 +47,6 @@ void hw_set_volume(int volume)
 void hw_display_off(void)
 {
 	FILE *f;
-	int   display_on_value_tmp = 0;
 
 	wdprintf(V_DEBUG, "hw_gcw0", "Display off requested.\n");
 	if ((f = fopen("/sys/class/graphics/fb0/blank", "w"))) {
