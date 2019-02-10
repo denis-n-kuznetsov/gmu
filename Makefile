@@ -161,7 +161,7 @@ default_distbin: $(DISTFILES)
 ifeq ($(TARGET),gcw0)
 	@echo -e "Creating \033[1m$(projname)-$(TARGET).opk\033[0m"
 	$(Q)-rm -f $(projname)-$(TARGET).opk
-	$(Q)mksquashfs $(projname)-$(TARGET) $(projname)-$(TARGET).opk
+	$(Q)mksquashfs $(projname)-$(TARGET) $(projname)-$(TARGET).opk -all-root -noappend -no-exports -no-xattrs
 endif
 	$(Q)-rm -rf $(projname)-$(TARGET)
 
