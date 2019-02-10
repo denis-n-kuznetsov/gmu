@@ -47,6 +47,7 @@ LFLAGS             = \
 
 DISTFILES          = \
                      $(BINARY) frontends decoders themes \
+                     libs.gcw0 \
                      gmu.bmp gmu.png README.txt COPYING \
                      htdocs \
                      gmu-gcw0.dge gmuinput.gcw0.conf default.gcw0.desktop \
